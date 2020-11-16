@@ -1,24 +1,22 @@
 from kh_common.exceptions.http_error import BadRequest, Forbidden, NotFound, InternalServerError
 from aiohttp import ClientTimeout, request as async_request
 from kh_common.caching import ArgsCache, SimpleCache
+from re import IGNORECASE, compile as re_compile
 from kh_common.config.constants import auth_host
 from typing import Dict, List, Optional, Tuple
 from psycopg2.errors import UniqueViolation
 from kh_common.logging import getLogger
-from kh_common.sql import SqlInterface
 from kh_common.hashing import Hashable
-from re import compile as re_compile
 from uuid import uuid4
 
 
 class Account(Hashable) :
 
-	EmailRegex = re_compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}')
+	EmailRegex = re_compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}', flags=IGNORECASE)
 
 
 	def __init__(self) :
 		Hashable.__init__(self)
-		SqlInterface.__init__(self)
 		self._auth_timeout = 30
 
 

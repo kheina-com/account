@@ -23,7 +23,7 @@ async def shutdown() :
 @app.post('/v1/login')
 async def v1Vote(req: Request, body: LoginRequest) :
 
-	auth = account.login(body.email, body.password)
+	auth = await account.login(body.email, body.password)
 
 	response = UJSONResponse(auth)
 	response.set_cookie('kh_auth', auth['token'], secure=True, httponly=True, samesite='lax')
