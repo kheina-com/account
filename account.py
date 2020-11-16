@@ -11,7 +11,7 @@ from re import compile as re_compile
 from uuid import uuid4
 
 
-class Account(SqlInterface, Hashable) :
+class Account(Hashable) :
 
 	EmailRegex = re_compile(r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}')
 
