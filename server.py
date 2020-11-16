@@ -26,7 +26,7 @@ async def v1Vote(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password)
 
 	response = UJSONResponse(auth)
-	response.set_cookie('kh_auth', auth.get('token') or auth.get('token_data'), secure=True, httponly=True, samesite='lax')
+	response.set_cookie('kh_auth', auth.get['token_data']['token'], secure=True, httponly=True, samesite='lax')
 
 	return response
 
