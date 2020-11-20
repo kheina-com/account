@@ -50,3 +50,41 @@ class Account(Hashable) :
 		) as response :
 			data = json.loads(await response.text())
 			return data
+
+
+	async def createAccount(self, name: str, handle: str, email: str, password: str) :
+		self._validateEmail(email)
+		self._validatePassword(password)
+
+		async with async_request(
+			'POST',
+			f'{auth_host}/v1/create',
+			json={
+				'email': email,
+				'password': password,
+				'name': name,
+				'handle': handle,
+			},
+			timeout=ClientTimeout(self._auth_timeout),
+		) as response :
+			data = json.loads(await response.text())
+			return data
+
+
+	async def changePassword(self, email: str, old_password: str, new_password: str) :
+		self._validateEmail(email)
+		# self._validatePassword(old_password)
+		self._validatePassword(new_password)
+
+		async with async_request(
+			'POST',
+			f'{auth_host}/v1/change_password',
+			json={
+				'email': email,
+				'old_password': old_password,
+				'new_password': new_password,
+			},
+			timeout=ClientTimeout(self._auth_timeout),
+		) as response :
+			data = json.loads(await response.text())
+			return data
