@@ -31,7 +31,7 @@ class Account(Hashable) :
 			raise BadRequest('the given password is invalid. passwords need to be at least 10 characters.')
 
 
-	async def login(self, email: str, password: str) :
+	async def login(self, email: str, password: str, ip_address: str) :
 		self._validateEmail(email)
 		# self._validatePassword(password)
 
@@ -44,6 +44,7 @@ class Account(Hashable) :
 				'generate_token': True,
 				'token_data': {
 					'email': email,
+					'ip': ip_address,
 				},
 			},
 			timeout=ClientTimeout(self._auth_timeout),
