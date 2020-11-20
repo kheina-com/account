@@ -21,7 +21,7 @@ async def shutdown() :
 
 
 @app.post('/v1/login')
-async def v1Vote(req: Request, body: LoginRequest) :
+async def v1Login(req: Request, body: LoginRequest) :
 
 	auth = await account.login(body.email, body.password, req.client.host)
 
@@ -32,14 +32,14 @@ async def v1Vote(req: Request, body: LoginRequest) :
 
 
 @app.post('/v1/create_account')
-async def v1Vote(req: LoginRequest) :
+async def v1CreateAccount(req: LoginRequest) :
 	return UJSONResponse(
 		await account.createAccount(req.name, req.handle, req.email, req.password)
 	)
 
 
 @app.post('/v1/change_password')
-async def v1Vote(req: ChangePasswordRequest) :
+async def v1ChangePassword(req: ChangePasswordRequest) :
 	return UJSONResponse(
 		await account.changePassword(req.email, req.password, req.new_password)
 	)
