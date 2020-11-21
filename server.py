@@ -1,17 +1,10 @@
 from models import LoginRequest, CreateAccountRequest, ChangePasswordRequest
-from starlette.middleware.trustedhost import TrustedHostMiddleware
-from kh_common.exceptions import jsonErrorHandler
-from fastapi.responses import UJSONResponse
-from kh_common.auth import KhAuthMiddleware
+from kh_common.server import ServerApp, UJSONResponse
 from fastapi import FastAPI, Request
 from account import Account
 
 
-app = FastAPI()
-app.add_exception_handler(Exception, jsonErrorHandler)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts={ 'localhost', '127.0.0.1', '*.kheina.com' })
-app.add_middleware(KhAuthMiddleware, required=False)
-
+app = ServerApp()
 account = Account()
 
 
@@ -33,16 +26,14 @@ async def v1Login(req: Request, body: LoginRequest) :
 
 @app.post('/v1/create_account')
 async def v1CreateAccount(req: LoginRequest) :
-	return UJSONResponse(
-		await account.createAccount(req.name, req.handle, req.email, req.password)
-	)
+	auth = await account.createAccount(req.name, req.handle, req.email, req.password)
+	return UJSONResponse(auth, status_code=auth['status'])
 
 
 @app.post('/v1/change_password')
 async def v1ChangePassword(req: ChangePasswordRequest) :
-	return UJSONResponse(
-		await account.changePassword(req.email, req.password, req.new_password)
-	)
+	auth = await account.changePassword(req.email, req.password, req.new_password)
+	return UJSONResponse(auth, status_code=auth['status'])
 
 
 if __name__ == '__main__' :

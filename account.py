@@ -33,7 +33,7 @@ class Account(Hashable) :
 
 	async def login(self, email: str, password: str, ip_address: str) :
 		self._validateEmail(email)
-		# self._validatePassword(password)
+		self._validatePassword(password)
 
 		async with async_request(
 			'POST',
@@ -74,7 +74,7 @@ class Account(Hashable) :
 
 	async def changePassword(self, email: str, old_password: str, new_password: str) :
 		self._validateEmail(email)
-		# self._validatePassword(old_password)
+		self._validatePassword(old_password)
 		self._validatePassword(new_password)
 
 		async with async_request(
