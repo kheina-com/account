@@ -1,6 +1,5 @@
 from models import LoginRequest, CreateAccountRequest, ChangePasswordRequest
-from kh_common.server import ServerApp, UJSONResponse
-from fastapi import FastAPI, Request
+from kh_common.server import Request, ServerApp, UJSONResponse
 from account import Account
 
 
