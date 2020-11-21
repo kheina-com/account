@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from account import Account
 
 
-app = ServerApp()
+app = ServerApp(auth=False)
 account = Account()
 
 
