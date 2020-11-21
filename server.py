@@ -27,13 +27,13 @@ async def v1Login(req: Request, body: LoginRequest) :
 @app.post('/v1/create_account')
 async def v1CreateAccount(req: CreateAccountRequest) :
 	auth = await account.createAccount(req.name, req.handle, req.email, req.password)
-	return UJSONResponse(auth, status_code=auth['status'])
+	return UJSONResponse(auth, status_code=auth.get('status', 200))
 
 
 @app.post('/v1/change_password')
 async def v1ChangePassword(req: ChangePasswordRequest) :
 	auth = await account.changePassword(req.email, req.password, req.new_password)
-	return UJSONResponse(auth, status_code=auth['status'])
+	return UJSONResponse(auth, status_code=auth.get('status', 200))
 
 
 if __name__ == '__main__' :
