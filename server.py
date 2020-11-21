@@ -25,7 +25,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 
 
 @app.post('/v1/create_account')
-async def v1CreateAccount(req: LoginRequest) :
+async def v1CreateAccount(req: CreateAccountRequest) :
 	auth = await account.createAccount(req.name, req.handle, req.email, req.password)
 	return UJSONResponse(auth, status_code=auth['status'])
 
