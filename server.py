@@ -3,7 +3,7 @@ from kh_common.server import Request, ServerApp, UJSONResponse
 from account import Account
 
 
-app = ServerApp(auth=False)
+app = ServerApp(auth_required=False)
 account = Account()
 
 
