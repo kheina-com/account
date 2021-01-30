@@ -101,7 +101,6 @@ class Account(Hashable) :
 
 	@HttpErrorHandler('finalizing user account')
 	async def finalizeAccount(self, name: str, handle: str, password: str, token:str=None) :
-		self._validateEmail(email)
 		self._validatePassword(password)
 
 		try :
