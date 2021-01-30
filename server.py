@@ -1,4 +1,4 @@
-from models import LoginRequest, CreateAccountRequest, ChangePasswordRequest
+from models import LoginRequest, CreateAccountRequest, ChangePasswordRequest, FinalizeAccountRequest
 from kh_common.server import Request, ServerApp, UJSONResponse
 from account import Account
 
