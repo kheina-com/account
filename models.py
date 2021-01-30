@@ -7,9 +7,14 @@ class LoginRequest(BaseModel) :
 	password: str
 
 
-class CreateAccountRequest(LoginRequest) :
+class CreateAccountRequest(BaseModel) :
+	email: str
 	name: str
+
+
+class FinalizeAccountRequest(LoginRequest, CreateAccountRequest) :
 	handle: str
+	token: str
 
 
 class ChangePasswordRequest(LoginRequest) :

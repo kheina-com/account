@@ -72,16 +72,15 @@ class Account(Hashable) :
 
 
 	@HttpErrorHandler('creating user account')
-	async def createAccount(self, email: str, name: str, handle: str) :
+	async def createAccount(self, email: str, name: str) :
 		self._validateEmail(email)
 
 		async with async_request(
 			'POST',
 			f'{auth_host}/v1/sign_data',
 			json={
-				'email': email,
 				'name': name,
-				'handle': handle,
+				'email': email,
 			},
 			timeout=ClientTimeout(self._auth_timeout),
 		) as response :
@@ -89,16 +88,12 @@ class Account(Hashable) :
 
 		await sendEmail(
 			f'{name} <{email}>',
-			'Verify your kheina.com account',
+			'Finish your kheina.com account',
 			Account.VerifyEmailText,
 			title=f'Hey, {name}',
 			button=Button(text='Finalize Account', link=self._finalize_link.format(token=data['token'])),
 			subtext=Account.VerifyEmailSubtext,
 		)
-
-		return {
-			'token': data['token'],
-		}
 
 
 	@HttpErrorHandler('finalizing user account')

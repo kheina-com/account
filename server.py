@@ -18,14 +18,20 @@ async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req.client.host)
 
 	response = UJSONResponse(auth)
-	response.set_cookie('kh_auth', auth['token_data']['token'], secure=True, httponly=True, samesite='lax')
+	response.set_cookie('kh-auth', auth['token_data']['token'], secure=True, httponly=True, samesite='strict')
 
 	return response
 
 
-@app.post('/v1/create_account')
+@app.post('/v1/create')
 async def v1CreateAccount(req: CreateAccountRequest) :
-	auth = await account.createAccount(req.name, req.handle, req.email, req.password)
+	auth = await account.createAccount(req.name, req.email)
+	return UJSONResponse(auth, status_code=auth.get('status', 200))
+
+
+@app.post('/v1/finalize')
+async def v1CreateAccount(req: FinalizeAccountRequest) :
+	auth = await account.finalizeAccount(req.name, req.handle, req.email, req.password, req.token)
 	return UJSONResponse(auth, status_code=auth.get('status', 200))
 
 
