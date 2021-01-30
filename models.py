@@ -12,9 +12,11 @@ class CreateAccountRequest(BaseModel) :
 	name: str
 
 
-class FinalizeAccountRequest(LoginRequest, CreateAccountRequest) :
+class FinalizeAccountRequest(BaseModel) :
+	name: str
 	handle: str
 	token: str
+	password: str
 
 
 class ChangePasswordRequest(LoginRequest) :

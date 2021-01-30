@@ -32,7 +32,7 @@ async def v1CreateAccount(req: CreateAccountRequest) :
 
 @app.post('/v1/finalize')
 async def v1CreateAccount(req: FinalizeAccountRequest) :
-	auth = await account.finalizeAccount(req.name, req.handle, req.email, req.password, req.token)
+	auth = await account.finalizeAccount(req.name, req.handle, req.password, req.token)
 	return UJSONResponse(auth, status_code=auth.get('status', 200))
 
 

@@ -100,7 +100,7 @@ class Account(Hashable) :
 
 
 	@HttpErrorHandler('finalizing user account')
-	async def finalizeAccount(self, name: str, handle: str, email: str, password: str, token:str=None) :
+	async def finalizeAccount(self, name: str, handle: str, password: str, token:str=None) :
 		self._validateEmail(email)
 		self._validatePassword(password)
 
@@ -109,9 +109,6 @@ class Account(Hashable) :
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
 
-		if token_data.data['email'] != email :
-			raise BadRequest('the email provided in the request was not the same email as provided.')
-
 		if token_data.data['purpose'] != 'create account' :
 			raise BadRequest('the token provided does not match the purpose required.')
 
@@ -119,7 +116,7 @@ class Account(Hashable) :
 			'POST',
 			f'{auth_host}/v1/create',
 			json={
-				'email': email,
+				'email': token_data.data['email'],
 				'password': password,
 				'name': name,
 				'handle': handle,
