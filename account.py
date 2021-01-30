@@ -82,6 +82,7 @@ class Account(Hashable) :
 				'token_data': {
 					'name': name,
 					'email': email,
+					'purpose': 'create account',
 				},
 			},
 			timeout=ClientTimeout(self._auth_timeout),
@@ -106,10 +107,13 @@ class Account(Hashable) :
 		try :
 			token_data = verifyToken(token)
 		except HttpError :
-			raise BadRequest('the email confirmation key provided was invalid and could not be authenticated')
+			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
 
 		if token_data.data['email'] != email :
-			raise BadRequest('the email provided in the request was not the same email as provided')
+			raise BadRequest('the email provided in the request was not the same email as provided.')
+
+		if token_data.data['purpose'] != 'create account' :
+			raise BadRequest('the token provided does not match the purpose required.')
 
 		async with async_request(
 			'POST',
