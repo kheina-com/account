@@ -1,5 +1,6 @@
 from models import LoginRequest, CreateAccountRequest, ChangePasswordRequest, FinalizeAccountRequest
 from kh_common.server import Request, ServerApp, UJSONResponse
+from fastapi.responses import Response
 from account import Account
 
 
@@ -26,7 +27,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 @app.post('/v1/create')
 async def v1CreateAccount(req: CreateAccountRequest) :
 	auth = await account.createAccount(req.name, req.email)
-	return UJSONResponse(auth, status_code=auth.get('status', 200))
+	return Response(None, status_code=204)
 
 
 @app.post('/v1/finalize')
