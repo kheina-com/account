@@ -79,8 +79,10 @@ class Account(Hashable) :
 			'POST',
 			f'{auth_host}/v1/sign_data',
 			json={
-				'name': name,
-				'email': email,
+				'token_data': {
+					'name': name,
+					'email': email,
+				},
 			},
 			timeout=ClientTimeout(self._auth_timeout),
 		) as response :
