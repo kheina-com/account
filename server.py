@@ -19,7 +19,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req.client.host)
 
 	response = UJSONResponse(auth)
-	response.set_cookie('kh-auth', auth['token_data']['token'], secure=True, httponly=True, samesite='strict')
+	response.set_cookie('kh-auth', auth['token_data']['token'], secure=True, httponly=False, samesite='strict')
 
 	return response
 
