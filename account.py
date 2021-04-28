@@ -11,23 +11,27 @@ from kh_common.auth import verifyToken, Scope
 from psycopg2.errors import UniqueViolation
 from kh_common.logging import getLogger
 from kh_common.hashing import Hashable
+from kh_common.sql import SqlInterface
 from uuid import uuid4
 import json
 
 
-class Account(Hashable) :
+class Account(SqlInterface, Hashable) :
 
 	EmailRegex = re_compile(r'^(?P<user>[A-Z0-9._%+-]+)@(?P<domain>[A-Z0-9.-]+\.[A-Z]{2,})$', flags=IGNORECASE)
 	VerifyEmailText = "Finish creating your new account at kheina.com by clicking the button below. If you didn't make this request, you can safely ignore this email."
 	VerifyEmailSubtext = 'kheina.com does not store your private information, including your email. You will not receive another email without directly requesting it.'
+	AccountCreateKey = 'create-account'
 
 
 	def __init__(self) :
 		Hashable.__init__(self)
+		SqlInterface.__init__(self)
 		self._auth_timeout = 30
 
 		if environment == Environment.prod :
 			self._finalize_link = 'https://kheina.com/account/finalize?token={token}'
+
 		else :
 			self._finalize_link = 'https://dev.kheina.com/account/finalize?token={token}'
 
@@ -82,7 +86,7 @@ class Account(Hashable) :
 				'token_data': {
 					'name': name,
 					'email': email,
-					'purpose': 'create account',
+					'key': Account.AccountCreateKey,
 				},
 			},
 			timeout=ClientTimeout(self._auth_timeout),
@@ -108,7 +112,7 @@ class Account(Hashable) :
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
 
-		if token_data.data['purpose'] != 'create account' :
+		if token_data.data.get('key') != Account.AccountCreateKey :
 			raise BadRequest('the token provided does not match the purpose required.')
 
 		async with async_request(
@@ -123,7 +127,34 @@ class Account(Hashable) :
 			timeout=ClientTimeout(self._auth_timeout),
 		) as response :
 			data = await response.json()
-			return data
+			if response.status >= 300 :
+				return data
+
+		self.query(
+			"""
+			INSERT INTO kheina.public.tags
+			(class_id, tag, owner)
+			VALUES
+			(tag_class_to_id(%s), %s, %s),
+			(tag_class_to_id(%s), %s, %s),
+			(tag_class_to_id(%s), %s, %s)
+			""",
+			(
+				'artist', f'{handle}_(artist)', data['user_id'],
+				'sponsor', f'{handle}_(sponsor)', data['user_id'],
+				'subject', f'{handle}_(subject)', data['user_id'],
+			),
+			commit=True,
+		)
+
+		return {
+			'tags': [
+				f'{handle}_(artist)',
+				f'{handle}_(sponsor)',
+				f'{handle}_(subject)',
+			],
+			**data,
+		}
 
 
 	@HttpErrorHandler('changing user password')
