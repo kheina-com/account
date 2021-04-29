@@ -140,9 +140,9 @@ class Account(SqlInterface, Hashable) :
 			(tag_class_to_id(%s), %s, %s)
 			""",
 			(
-				'artist', f'{handle}_(artist)', data['user_id'],
-				'sponsor', f'{handle}_(sponsor)', data['user_id'],
-				'subject', f'{handle}_(subject)', data['user_id'],
+				'artist', f'{handle.lower()}_(artist)', data['user_id'],
+				'sponsor', f'{handle.lower()}_(sponsor)', data['user_id'],
+				'subject', f'{handle.lower()}_(subject)', data['user_id'],
 			),
 			commit=True,
 		)
