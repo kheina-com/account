@@ -48,6 +48,11 @@ class Account(SqlInterface, Hashable) :
 			raise BadRequest('the given password is invalid. passwords need to be at least 10 characters.')
 
 
+	def _validateHandle(self, handle: str) :
+		if len(handle) < 5 :
+			raise BadRequest('the given handle is invalid. handles need to be at least 5 characters in length.')
+
+
 	@HttpErrorHandler('logging in user')
 	async def login(self, email: str, password: str, ip_address: str) :
 		admin = self._validateEmail(email)['domain'] == 'kheina.com'
@@ -106,9 +111,11 @@ class Account(SqlInterface, Hashable) :
 	@HttpErrorHandler('finalizing user account')
 	async def finalizeAccount(self, name: str, handle: str, password: str, token:str=None) :
 		self._validatePassword(password)
+		self._validateHandle(handle)
 
 		try :
 			token_data = verifyToken(token)
+
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
 
