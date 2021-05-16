@@ -1,7 +1,6 @@
-from kh_common.exceptions.http_error import BadRequest, Forbidden, HttpError, HttpErrorHandler, NotFound, InternalServerError
+from kh_common.exceptions.http_error import BadRequest, Conflict, HttpError, HttpErrorHandler, NotFound, InternalServerError
 from kh_common.config.constants import auth_host, environment, Environment
 from aiohttp import ClientTimeout, request as async_request
-from kh_common.caching import ArgsCache, SimpleCache
 from kh_common.config.constants import auth_host
 from re import IGNORECASE, compile as re_compile
 from kh_common.utilities.json import json_stream
@@ -9,10 +8,9 @@ from typing import Dict, List, Optional, Tuple
 from kh_common.email import Button, sendEmail
 from kh_common.auth import verifyToken, Scope
 from psycopg2.errors import UniqueViolation
-from kh_common.logging import getLogger
 from kh_common.hashing import Hashable
 from kh_common.sql import SqlInterface
-from uuid import uuid4
+from kh_common.auth import KhUser
 import json
 
 
@@ -156,9 +154,9 @@ class Account(SqlInterface, Hashable) :
 
 		return {
 			'tags': [
-				f'{handle}_(artist)',
-				f'{handle}_(sponsor)',
-				f'{handle}_(subject)',
+				f'{handle.lower()}_(artist)',
+				f'{handle.lower()}_(sponsor)',
+				f'{handle.lower()}_(subject)',
 			],
 			**data,
 		}
@@ -182,3 +180,18 @@ class Account(SqlInterface, Hashable) :
 		) as response :
 			data = await response.json()
 			return data
+
+
+	@HttpErrorHandler('changing user handle', {
+		UniqueViolation: (Conflict, 'A user already exists with the provided handle.'),
+	})
+	def changeHandle(self, user: KhUser, handle: str) :
+		self._validateHandle(handle)
+		self.query("""
+				UPDATE kheina.public.users
+					SET handle = %s
+				WHERE user_id = %s
+			""",
+			(handle, user.user_id),
+			commit=True,
+		)

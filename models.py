@@ -19,5 +19,9 @@ class FinalizeAccountRequest(BaseModel) :
 	password: str
 
 
+class ChangeHandle(BaseModel) :
+	handle: str
+
+
 class ChangePasswordRequest(LoginRequest) :
 	new_password: str
