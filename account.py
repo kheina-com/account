@@ -51,7 +51,7 @@ class Account(SqlInterface, Hashable) :
 			raise BadRequest('the given handle is invalid. handles need to be at least 5 characters in length.')
 
 
-	@HttpErrorHandler('logging in user')
+	@HttpErrorHandler('logging in user', exclusions=['self', 'password'])
 	async def login(self, email: str, password: str, ip_address: str) :
 		admin = self._validateEmail(email)['domain'] == 'kheina.com'
 		self._validatePassword(password)
@@ -106,7 +106,7 @@ class Account(SqlInterface, Hashable) :
 		)
 
 
-	@HttpErrorHandler('finalizing user account')
+	@HttpErrorHandler('finalizing user account', exclusions=['self', 'password'])
 	async def finalizeAccount(self, name: str, handle: str, password: str, token:str=None) :
 		self._validatePassword(password)
 		self._validateHandle(handle)
@@ -162,7 +162,7 @@ class Account(SqlInterface, Hashable) :
 		}
 
 
-	@HttpErrorHandler('changing user password')
+	@HttpErrorHandler('changing user password', exclusions=['self', 'old_password', 'new_password'])
 	async def changePassword(self, email: str, old_password: str, new_password: str) :
 		self._validateEmail(email)
 		self._validatePassword(old_password)
