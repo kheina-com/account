@@ -182,7 +182,7 @@ class Account(SqlInterface, Hashable) :
 			return data
 
 
-	@HttpErrorHandler('changing user handle', {
+	@HttpErrorHandler('changing user handle', handlers = {
 		UniqueViolation: (Conflict, 'A user already exists with the provided handle.'),
 	})
 	def changeHandle(self, user: KhUser, handle: str) :
