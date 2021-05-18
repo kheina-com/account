@@ -32,9 +32,13 @@ async def v1CreateAccount(req: CreateAccountRequest) :
 
 
 @app.post('/v1/finalize')
-async def v1CreateAccount(req: FinalizeAccountRequest) :
-	auth = await account.finalizeAccount(req.name, req.handle, req.password, req.token)
-	return UJSONResponse(auth, status_code=auth.get('status', 200))
+async def v1FinalizeAccount(req: FinalizeAccountRequest) :
+	auth = await account.finalizeAccount(req.name, req.handle, req.password, req.token, req.client.host)
+
+	response = UJSONResponse(auth, status_code=auth.get('status', 200))
+	response.set_cookie('kh-auth', token_jmespath.search(auth), secure=True, httponly=False, samesite='strict')
+
+	return response
 
 
 @app.post('/v1/change_password')

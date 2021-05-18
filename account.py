@@ -11,7 +11,6 @@ from psycopg2.errors import UniqueViolation
 from kh_common.hashing import Hashable
 from kh_common.sql import SqlInterface
 from kh_common.auth import KhUser
-import json
 
 
 class Account(SqlInterface, Hashable) :
@@ -107,7 +106,7 @@ class Account(SqlInterface, Hashable) :
 
 
 	@HttpErrorHandler('finalizing user account', exclusions=['self', 'password'])
-	async def finalizeAccount(self, name: str, handle: str, password: str, token:str=None) :
+	async def finalizeAccount(self, name: str, handle: str, password: str, token: str, ip_address: str) :
 		self._validatePassword(password)
 		self._validateHandle(handle)
 
@@ -128,6 +127,10 @@ class Account(SqlInterface, Hashable) :
 				'password': password,
 				'name': name,
 				'handle': handle,
+				'token_data': {
+					'email': token_data.data['email'],
+					'ip': ip_address,
+				},
 			},
 			timeout=ClientTimeout(self._auth_timeout),
 		) as response :
