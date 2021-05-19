@@ -193,7 +193,7 @@ class Account(SqlInterface, Hashable) :
 		self.query("""
 				UPDATE kheina.public.users
 					SET handle = %s
-				WHERE user_id = %s
+				WHERE user_id = %s;
 			""",
 			(handle, user.user_id),
 			commit=True,

@@ -27,7 +27,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 
 @app.post('/v1/create')
 async def v1CreateAccount(req: CreateAccountRequest) :
-	await account.createAccount(req.name, req.email)
+	await account.createAccount(req.email, req.name)
 	return NoContentResponse
 
 
