@@ -17,7 +17,7 @@ async def shutdown() :
 
 @app.post('/v1/login')
 async def v1Login(req: Request, body: LoginRequest) :
-	auth = await account.login(body.email, body.password, req.client.host)
+	auth = await account.login(body.email, body.password, req)
 
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
 	response.set_cookie('kh-auth', token_jmespath.search(auth), secure=True, httponly=False, samesite='strict')
@@ -34,9 +34,11 @@ async def v1CreateAccount(req: CreateAccountRequest) :
 @app.post('/v1/finalize')
 async def v1FinalizeAccount(req: Request, body: FinalizeAccountRequest) :
 	auth = await account.finalizeAccount(body.name, body.handle, body.password, body.token, req.client.host)
+	token = token_jmespath.search(auth)
 
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
-	response.set_cookie('kh-auth', token_jmespath.search(auth), secure=True, httponly=False, samesite='strict')
+	if token :
+		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict')
 
 	return response
 

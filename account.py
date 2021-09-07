@@ -1,20 +1,22 @@
 from kh_common.exceptions.http_error import BadRequest, Conflict, HttpError, HttpErrorHandler, NotFound, InternalServerError
 from kh_common.config.constants import auth_host, environment, Environment
+from kh_common.auth import browserFingerprint, verifyToken, Scope
 from aiohttp import ClientTimeout, request as async_request
 from kh_common.config.constants import auth_host
 from re import IGNORECASE, compile as re_compile
 from kh_common.utilities.json import json_stream
 from typing import Dict, List, Optional, Tuple
 from kh_common.email import Button, sendEmail
-from kh_common.auth import verifyToken, Scope
 from psycopg2.errors import UniqueViolation
 from kh_common.hashing import Hashable
 from kh_common.sql import SqlInterface
+from kh_common.server import Request
 from kh_common.auth import KhUser
 
 
 class Account(SqlInterface, Hashable) :
 
+	HandleRegex = re_compile(r'^[a-zA-Z0-9_]{5,}$')
 	EmailRegex = re_compile(r'^(?P<user>[A-Z0-9._%+-]+)@(?P<domain>[A-Z0-9.-]+\.[A-Z]{2,})$', flags=IGNORECASE)
 	VerifyEmailText = "Finish creating your new account at kheina.com by clicking the button below. If you didn't make this request, you can safely ignore this email."
 	VerifyEmailSubtext = 'kheina.com does not store your private information, including your email. You will not receive another email without directly requesting it.'
@@ -42,22 +44,23 @@ class Account(SqlInterface, Hashable) :
 
 	def _validatePassword(self, password: str) :
 		if len(password) < 10 :
-			raise BadRequest('the given password is invalid. passwords need to be at least 10 characters.')
+			raise BadRequest(f'the provided password (length {len(password)}) is invalid. passwords must be at least 10 characters in length.')
 
 
 	def _validateHandle(self, handle: str) :
-		if len(handle) < 5 :
-			raise BadRequest('the given handle is invalid. handles need to be at least 5 characters in length.')
+		if not Account.HandleRegex.fullmatch(handle) :
+			raise BadRequest(f'the provided handle: {handle}, is invalid. handles must be at least 5 characters in length.')
 
 
 	@HttpErrorHandler('logging in user', exclusions=['self', 'password'])
-	async def login(self, email: str, password: str, ip_address: str) :
+	async def login(self, email: str, password: str, request: Request) :
 		admin = self._validateEmail(email)['domain'] == 'kheina.com'
 		self._validatePassword(password)
 
 		token_data = {
 			'email': email,
-			'ip': ip_address,
+			'ip': request.headers.get('cf-connecting-ip') or request.headers.get('x-forwarded-for') or request.client.host,
+			'fp': browserFingerprint(request),
 		}
 
 		if admin :
@@ -111,7 +114,7 @@ class Account(SqlInterface, Hashable) :
 		self._validateHandle(handle)
 
 		try :
-			token_data = verifyToken(token)
+			token_data = await verifyToken(token)
 
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
@@ -135,7 +138,7 @@ class Account(SqlInterface, Hashable) :
 			timeout=ClientTimeout(self._auth_timeout),
 		) as response :
 			data = await response.json()
-			if response.status >= 300 :
+			if response.status >= 400 :
 				return data
 
 		self.query(
