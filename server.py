@@ -1,6 +1,7 @@
 from models import ChangeHandle, ChangePasswordRequest,  CreateAccountRequest, FinalizeAccountRequest, LoginRequest
-from kh_common.server import NoContentResponse, Request, ServerApp, UJSONResponse
+from kh_common.server import NoContentResponse, Request, ServerApp
 from jmespath import compile as jmes_compile
+from fastapi.responses import UJSONResponse
 from account import Account
 
 
