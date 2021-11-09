@@ -1,7 +1,6 @@
 from models import ChangeHandle, ChangePasswordRequest,  CreateAccountRequest, FinalizeAccountRequest, LoginRequest
 from kh_common.server import NoContentResponse, Request, ServerApp, UJSONResponse
 from jmespath import compile as jmes_compile
-from fastapi.responses import Response
 from account import Account
 
 
@@ -18,9 +17,11 @@ async def shutdown() :
 @app.post('/v1/login')
 async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req)
+	token = token_jmespath.search(auth)
 
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
-	response.set_cookie('kh-auth', token_jmespath.search(auth), secure=True, httponly=False, samesite='strict')
+	if token :
+		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict')
 
 	return response
 
