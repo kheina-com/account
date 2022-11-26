@@ -114,7 +114,7 @@ class Account(SqlInterface, Hashable) :
 		self._validateHandle(handle)
 
 		try :
-			token_data = await verifyToken(token)
+			token_data = await verifyToken(token, allow_non_user_tokens=True)
 
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
