@@ -5,7 +5,25 @@ from fastapi.responses import UJSONResponse
 from account import Account
 
 
-app = ServerApp(auth_required=False)
+app = ServerApp(
+	auth_required = False,
+	allowed_hosts = [
+		'localhost',
+		'127.0.0.1',
+		'*.kheina.com',
+		'kheina.com',
+		'*.fuzz.ly',
+		'fuzz.ly',
+	],
+	allowed_origins = [
+		'localhost',
+		'127.0.0.1',
+		'dev.kheina.com',
+		'kheina.com',
+		'dev.fuzz.ly',
+		'fuzz.ly',
+	],
+)
 account = Account()
 token_jmespath = jmes_compile('token_data.token')
 

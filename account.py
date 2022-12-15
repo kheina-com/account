@@ -1,13 +1,13 @@
 from kh_common.exceptions.http_error import BadRequest, Conflict, HttpError, HttpErrorHandler, NotFound, InternalServerError
-from kh_common.config.constants import auth_host, environment, Environment
 from kh_common.auth import browserFingerprint, verifyToken, Scope
+from kh_common.config.constants import auth_host, environment
 from aiohttp import ClientTimeout, request as async_request
-from kh_common.config.constants import auth_host
 from re import IGNORECASE, compile as re_compile
 from kh_common.utilities.json import json_stream
 from typing import Dict, List, Optional, Tuple
 from kh_common.email import Button, sendEmail
 from psycopg2.errors import UniqueViolation
+from kh_common.models.user import User
 from kh_common.hashing import Hashable
 from kh_common.sql import SqlInterface
 from kh_common.server import Request
@@ -21,39 +21,46 @@ class Account(SqlInterface, Hashable) :
 	VerifyEmailText = "Finish creating your new account at kheina.com by clicking the button below. If you didn't make this request, you can safely ignore this email."
 	VerifyEmailSubtext = 'kheina.com does not store your private information, including your email. You will not receive another email without directly requesting it.'
 	AccountCreateKey = 'create-account'
+	AccountRecoveryKey = 'recover-account'
 
 
-	def __init__(self) :
+	def __init__(self: 'Account') :
 		Hashable.__init__(self)
 		SqlInterface.__init__(self)
 		self._auth_timeout = 30
 
-		if environment == Environment.prod :
+		if environment.is_prod() :
 			self._finalize_link = 'https://kheina.com/account/finalize?token={token}'
+			self._recovery_link = 'https://kheina.com/account/recovery?token={token}'
 
 		else :
 			self._finalize_link = 'https://dev.kheina.com/account/finalize?token={token}'
+			self._recovery_link = 'https://dev.kheina.com/account/recovery?token={token}'
 
 
-	def _validateEmail(self, email: str) :
+	def _validateEmail(self: 'Account', email: str) :
 		email = Account.EmailRegex.search(email)
 		if not email :
 			raise BadRequest('the given email is invalid.')
 		return email.groupdict()
 
 
-	def _validatePassword(self, password: str) :
+	def _validatePassword(self: 'Account', password: str) :
 		if len(password) < 10 :
 			raise BadRequest(f'the provided password (length {len(password)}) is invalid. passwords must be at least 10 characters in length.')
 
 
-	def _validateHandle(self, handle: str) :
+	def _validateHandle(self: 'Account', handle: str) :
 		if not Account.HandleRegex.fullmatch(handle) :
 			raise BadRequest(f'the provided handle: {handle}, is invalid. handles must be at least 5 characters in length.')
 
 
+	async def fetchUserByEmail(self: 'Account', email: str) -> User :
+		data = await self.query_async()
+
+
 	@HttpErrorHandler('logging in user', exclusions=['self', 'password'])
-	async def login(self, email: str, password: str, request: Request) :
+	async def login(self: 'Account', email: str, password: str, request: Request) :
 		admin = self._validateEmail(email)['domain'] == 'kheina.com'
 		self._validatePassword(password)
 
@@ -81,7 +88,7 @@ class Account(SqlInterface, Hashable) :
 
 
 	@HttpErrorHandler('creating user account')
-	async def createAccount(self, email: str, name: str) :
+	async def createAccount(self: 'Account', email: str, name: str) :
 		self._validateEmail(email)
 
 		async with async_request(
@@ -109,7 +116,7 @@ class Account(SqlInterface, Hashable) :
 
 
 	@HttpErrorHandler('finalizing user account', exclusions=['self', 'password'])
-	async def finalizeAccount(self, name: str, handle: str, password: str, token: str, ip_address: str) :
+	async def finalizeAccount(self: 'Account', name: str, handle: str, password: str, token: str, ip_address: str) :
 		self._validatePassword(password)
 		self._validateHandle(handle)
 
@@ -169,7 +176,7 @@ class Account(SqlInterface, Hashable) :
 
 
 	@HttpErrorHandler('changing user password', exclusions=['self', 'old_password', 'new_password'])
-	async def changePassword(self, email: str, old_password: str, new_password: str) :
+	async def changePassword(self: 'Account', email: str, old_password: str, new_password: str) :
 		self._validateEmail(email)
 		self._validatePassword(old_password)
 		self._validatePassword(new_password)
@@ -191,7 +198,7 @@ class Account(SqlInterface, Hashable) :
 	@HttpErrorHandler('changing user handle', handlers = {
 		UniqueViolation: (Conflict, 'A user already exists with the provided handle.'),
 	})
-	def changeHandle(self, user: KhUser, handle: str) :
+	def changeHandle(self: 'Account', user: KhUser, handle: str) :
 		self._validateHandle(handle)
 		self.query("""
 				UPDATE kheina.public.users
@@ -200,4 +207,32 @@ class Account(SqlInterface, Hashable) :
 			""",
 			(handle, user.user_id),
 			commit=True,
+		)
+
+
+	@HttpErrorHandler('performing password recovery')
+	async def recoverPassword(self: 'Account', email: str) :
+		self._validateEmail(email)
+
+		async with async_request(
+			'POST',
+			f'{auth_host}/v1/sign_data',
+			json={
+				'token_data': {
+					'name': name,
+					'email': email,
+					'key': Account.AccountRecoveryKey,
+				},
+			},
+			timeout=ClientTimeout(self._auth_timeout),
+		) as response :
+			data = await response.json()
+
+		await sendEmail(
+			f'{name} <{email}>',
+			'Password recovery for your kheina.com account',
+			Account.VerifyEmailText,
+			title=f'Hey, {name}',
+			button=Button(text='Set New Password', link=self._recovery_link.format(token=data['token'])),
+			subtext='If you did not initiate this account recovery, you do not need to do anything. However, someone may be trying to gain access to your account. Changing your passwords may be a good idea.',
 		)
