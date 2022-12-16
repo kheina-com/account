@@ -27,6 +27,7 @@ app = ServerApp(
 )
 account = Account()
 token_jmespath = jmes_compile('token_data.token')
+expires_jmespath = jmes_compile('token_data.expires')
 
 
 @app.on_event('shutdown')
@@ -41,7 +42,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
 	if token :
-		expires = auth['expires'] - time()
+		expires = expires_jmespath.search(auth) - time()
 		response.set_cookie('kh-auth', token, secure=True, httponly=True, samesite='strict', expires=expires, domain='.fuzz.ly')
 
 	return response
