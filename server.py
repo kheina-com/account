@@ -42,8 +42,7 @@ async def v1Login(req: Request, body: LoginRequest) :
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
 	if token :
 		expires = auth['expires'] - time()
-		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict', expires=expires)
-		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict', expires=expires, domain='.fuzz.ly')
+		response.set_cookie('kh-auth', token, secure=True, httponly=True, samesite='strict', expires=expires, domain='.fuzz.ly')
 
 	return response
 
