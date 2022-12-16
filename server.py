@@ -3,6 +3,7 @@ from kh_common.server import NoContentResponse, Request, ServerApp
 from jmespath import compile as jmes_compile
 from fastapi.responses import UJSONResponse
 from account import Account
+from time import time
 
 
 app = ServerApp(
@@ -40,7 +41,9 @@ async def v1Login(req: Request, body: LoginRequest) :
 
 	response = UJSONResponse(auth, status_code=auth.get('status', 200))
 	if token :
-		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict')
+		expires = auth['expires'] - time()
+		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict', expires=expires)
+		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict', expires=expires, domain='.fuzz.ly')
 
 	return response
 
