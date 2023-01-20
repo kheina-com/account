@@ -1,25 +1,42 @@
-from kh_common.exceptions.http_error import BadRequest, Conflict, HttpError, HttpErrorHandler, NotFound, InternalServerError
-from kh_common.auth import browserFingerprint, verifyToken, Scope
-from kh_common.config.constants import auth_host, environment
-from aiohttp import ClientTimeout, request as async_request
-from re import IGNORECASE, compile as re_compile
-from kh_common.utilities.json import json_stream
-from typing import Dict, List, Optional, Tuple
+from re import IGNORECASE
+from re import compile as re_compile
+
+from kh_common.auth import KhUser, browserFingerprint, verifyToken
+from kh_common.client import Client
+from kh_common.config.constants import environment
+from kh_common.config.credentials import fuzzly_client_token
 from kh_common.email import Button, sendEmail
-from psycopg2.errors import UniqueViolation
-from kh_common.models.user import User
+from kh_common.exceptions.http_error import BadRequest, Conflict, HttpError, HttpErrorHandler
+from kh_common.gateway import Gateway
 from kh_common.hashing import Hashable
-from kh_common.sql import SqlInterface
+from kh_common.models.user import User
 from kh_common.server import Request
-from kh_common.auth import KhUser
+from kh_common.sql import SqlInterface
+from kh_common.utilities.json import json_stream
+from psycopg2.errors import UniqueViolation
+
+from fuzzly_account.constants import AuthHost
+from fuzzly_account.models import LoginResponse, TokenResponse
+
+
+class AuthClient(Client) :
+
+	def __init__(self: 'AuthClient', *a, **kv) :
+		super().__init__(*a, **kv)
+		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
+		self.sign: Gateway = self.authenticated(Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST'))
+		self.create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/create', LoginResponse, 'POST'))
+		self.change_password: Gateway = self.authenticated(Gateway(AuthHost + '/v1/change_password', decoder=None))
+
+auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
 
 class Account(SqlInterface, Hashable) :
 
 	HandleRegex = re_compile(r'^[a-zA-Z0-9_]{5,}$')
 	EmailRegex = re_compile(r'^(?P<user>[A-Z0-9._%+-]+)@(?P<domain>[A-Z0-9.-]+\.[A-Z]{2,})$', flags=IGNORECASE)
-	VerifyEmailText = "Finish creating your new account at kheina.com by clicking the button below. If you didn't make this request, you can safely ignore this email."
-	VerifyEmailSubtext = 'kheina.com does not store your private information, including your email. You will not receive another email without directly requesting it.'
+	VerifyEmailText = "Finish creating your new account at fuzz.ly by clicking the button below. If you didn't make this request, you can safely ignore this email."
+	VerifyEmailSubtext = 'fuzz.ly does not store your private information, including your email. You will not receive another email without directly requesting it.'
 	AccountCreateKey = 'create-account'
 	AccountRecoveryKey = 'recover-account'
 
@@ -30,12 +47,12 @@ class Account(SqlInterface, Hashable) :
 		self._auth_timeout = 30
 
 		if environment.is_prod() :
-			self._finalize_link = 'https://kheina.com/account/finalize?token={token}'
-			self._recovery_link = 'https://kheina.com/account/recovery?token={token}'
+			self._finalize_link = 'https://fuzz.ly/account/finalize?token={token}'
+			self._recovery_link = 'https://fuzz.ly/account/recovery?token={token}'
 
 		else :
-			self._finalize_link = 'https://dev.kheina.com/account/finalize?token={token}'
-			self._recovery_link = 'https://dev.kheina.com/account/recovery?token={token}'
+			self._finalize_link = 'https://dev.fuzz.ly/account/finalize?token={token}'
+			self._recovery_link = 'https://dev.fuzz.ly/account/recovery?token={token}'
 
 
 	def _validateEmail(self: 'Account', email: str) :
@@ -60,8 +77,8 @@ class Account(SqlInterface, Hashable) :
 
 
 	@HttpErrorHandler('logging in user', exclusions=['self', 'password'])
-	async def login(self: 'Account', email: str, password: str, request: Request) :
-		admin = self._validateEmail(email)['domain'] == 'kheina.com'
+	async def login(self: 'Account', email: str, password: str, request: Request) -> LoginResponse :
+		self._validateEmail(email)
 		self._validatePassword(password)
 
 		token_data = {
@@ -70,53 +87,36 @@ class Account(SqlInterface, Hashable) :
 			'fp': browserFingerprint(request),
 		}
 
-		if admin :
-			token_data['scope'] = Scope.admin.all_included_scopes()
-
-		async with async_request(
-			'POST',
-			f'{auth_host}/v1/login',
-			json={
-				'email': email,
-				'password': password,
-				'generate_token': True,
-				'token_data': json_stream(token_data),
-			},
-			timeout=ClientTimeout(self._auth_timeout),
-		) as response :
-			return await response.json()
+		return await auth_client.login({
+			'email': email,
+			'password': password,
+			'token_data': json_stream(token_data),
+		})
 
 
 	@HttpErrorHandler('creating user account')
 	async def createAccount(self: 'Account', email: str, name: str) :
 		self._validateEmail(email)
-
-		async with async_request(
-			'POST',
-			f'{auth_host}/v1/sign_data',
-			json={
-				'token_data': {
-					'name': name,
-					'email': email,
-					'key': Account.AccountCreateKey,
-				},
+		data: TokenResponse = await auth_client.sign({
+			'token_data': {
+				'name': name,
+				'email': email,
+				'key': Account.AccountCreateKey,
 			},
-			timeout=ClientTimeout(self._auth_timeout),
-		) as response :
-			data = await response.json()
+		})
 
 		await sendEmail(
 			f'{name} <{email}>',
-			'Finish your kheina.com account',
+			'Finish your fuzz.ly account',
 			Account.VerifyEmailText,
 			title=f'Hey, {name}',
-			button=Button(text='Finalize Account', link=self._finalize_link.format(token=data['token'])),
+			button=Button(text='Finalize Account', link=self._finalize_link.format(token=data.token)),
 			subtext=Account.VerifyEmailSubtext,
 		)
 
 
 	@HttpErrorHandler('finalizing user account', exclusions=['self', 'password'])
-	async def finalizeAccount(self: 'Account', name: str, handle: str, password: str, token: str, ip_address: str) :
+	async def finalizeAccount(self: 'Account', name: str, handle: str, password: str, token: str, ip_address: str) -> LoginResponse :
 		self._validatePassword(password)
 		self._validateHandle(handle)
 
@@ -129,26 +129,18 @@ class Account(SqlInterface, Hashable) :
 		if token_data.data.get('key') != Account.AccountCreateKey :
 			raise BadRequest('the token provided does not match the purpose required.')
 
-		async with async_request(
-			'POST',
-			f'{auth_host}/v1/create',
-			json={
+		data: LoginResponse = await auth_client.create({
+			'email': token_data.data['email'],
+			'password': password,
+			'name': name,
+			'handle': handle,
+			'token_data': {
 				'email': token_data.data['email'],
-				'password': password,
-				'name': name,
-				'handle': handle,
-				'token_data': {
-					'email': token_data.data['email'],
-					'ip': ip_address,
-				},
+				'ip': ip_address,
 			},
-			timeout=ClientTimeout(self._auth_timeout),
-		) as response :
-			data = await response.json()
-			if response.status >= 400 :
-				return data
+		})
 
-		self.query(
+		await self.query_async(
 			"""
 			INSERT INTO kheina.public.tags
 			(class_id, tag, owner)
@@ -165,42 +157,28 @@ class Account(SqlInterface, Hashable) :
 			commit=True,
 		)
 
-		return {
-			'tags': [
-				f'{handle.lower()}_(artist)',
-				f'{handle.lower()}_(sponsor)',
-				f'{handle.lower()}_(subject)',
-			],
-			**data,
-		}
+		return data
 
 
 	@HttpErrorHandler('changing user password', exclusions=['self', 'old_password', 'new_password'])
-	async def changePassword(self: 'Account', email: str, old_password: str, new_password: str) :
+	async def changePassword(self: 'Account', email: str, old_password: str, new_password: str) -> None :
 		self._validateEmail(email)
 		self._validatePassword(old_password)
 		self._validatePassword(new_password)
 
-		async with async_request(
-			'POST',
-			f'{auth_host}/v1/change_password',
-			json={
-				'email': email,
-				'old_password': old_password,
-				'new_password': new_password,
-			},
-			timeout=ClientTimeout(self._auth_timeout),
-		) as response :
-			data = await response.json()
-			return data
+		await auth_client.change_password({
+			'email': email,
+			'old_password': old_password,
+			'new_password': new_password,
+		})
 
 
 	@HttpErrorHandler('changing user handle', handlers = {
 		UniqueViolation: (Conflict, 'A user already exists with the provided handle.'),
 	})
-	def changeHandle(self: 'Account', user: KhUser, handle: str) :
+	async def changeHandle(self: 'Account', user: KhUser, handle: str) :
 		self._validateHandle(handle)
-		self.query("""
+		await self.query_async("""
 				UPDATE kheina.public.users
 					SET handle = %s
 				WHERE user_id = %s;
@@ -214,25 +192,19 @@ class Account(SqlInterface, Hashable) :
 	async def recoverPassword(self: 'Account', email: str) :
 		self._validateEmail(email)
 
-		async with async_request(
-			'POST',
-			f'{auth_host}/v1/sign_data',
-			json={
-				'token_data': {
-					'name': name,
-					'email': email,
-					'key': Account.AccountRecoveryKey,
-				},
+
+		data: TokenResponse = await auth_client.sign({
+			'token_data': {
+				'email': email,
+				'key': Account.AccountRecoveryKey,
 			},
-			timeout=ClientTimeout(self._auth_timeout),
-		) as response :
-			data = await response.json()
+		})
 
 		await sendEmail(
-			f'{name} <{email}>',
-			'Password recovery for your kheina.com account',
+			f'User <{email}>',
+			'Password recovery for your fuzz.ly account',
 			Account.VerifyEmailText,
-			title=f'Hey, {name}',
-			button=Button(text='Set New Password', link=self._recovery_link.format(token=data['token'])),
+			title='Hey, fuzz.ly User',
+			button=Button(text='Set New Password', link=self._recovery_link.format(token=data.token)),
 			subtext='If you did not initiate this account recovery, you do not need to do anything. However, someone may be trying to gain access to your account. Changing your passwords may be a good idea.',
 		)

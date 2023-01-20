@@ -1,9 +1,14 @@
-from models import ChangeHandle, ChangePasswordRequest,  CreateAccountRequest, FinalizeAccountRequest, LoginRequest
-from kh_common.server import NoContentResponse, Request, ServerApp
-from jmespath import compile as jmes_compile
 from fastapi.responses import UJSONResponse
+from kh_common.auth import Scope
+from kh_common.client import Client
+from kh_common.config.credentials import fuzzly_client_token
+from kh_common.gateway import Gateway
+from kh_common.server import Request, ServerApp
+from kh_common.datetime import datetime
+
 from account import Account
-from time import time
+from fuzzly_account.constants import AuthHost
+from fuzzly_account.models import AuthLoginRequest, BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
 app = ServerApp(
@@ -26,8 +31,17 @@ app = ServerApp(
 	],
 )
 account = Account()
-token_jmespath = jmes_compile('token_data.token')
-expires_jmespath = jmes_compile('token_data.expires')
+
+
+class AuthClient(Client) :
+
+	def __init__(self: 'AuthClient', *a, **kv) :
+		super().__init__(*a, **kv)
+		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
+		self.bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
+		self.bot_create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST'))
+
+auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
 
 @app.on_event('shutdown')
@@ -35,48 +49,59 @@ async def shutdown() :
 	account.close()
 
 
-@app.post('/v1/login')
+@app.post('/v1/login', response_model=LoginResponse)
 async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req)
-	token = token_jmespath.search(auth)
 
-	response = UJSONResponse(auth, status_code=auth.get('status', 200))
-	if token :
-		expires = int(expires_jmespath.search(auth) - time())
-		response.set_cookie('kh-auth', token, secure=True, httponly=True, samesite='strict', expires=expires)
+	response = UJSONResponse(auth)
+
+	if auth.token.token :
+		expires = auth.token.expires - datetime.now()
+		response.set_cookie('kh-auth', auth.token.token, secure=True, httponly=True, samesite='strict', expires=int(expires.total_seconds()))
 
 	return response
 
 
-@app.post('/v1/create')
-async def v1CreateAccount(req: CreateAccountRequest) :
-	await account.createAccount(req.email, req.name)
-	return NoContentResponse
+@app.post('/v1/create', status_code=204)
+async def v1CreateAccount(body: CreateAccountRequest) :
+	await account.createAccount(body.email, body.name)
 
 
-@app.post('/v1/finalize')
+@app.post('/v1/finalize', response_model=LoginResponse)
 async def v1FinalizeAccount(req: Request, body: FinalizeAccountRequest) :
 	auth = await account.finalizeAccount(body.name, body.handle, body.password, body.token, req.client.host)
-	token = token_jmespath.search(auth)
 
-	response = UJSONResponse(auth, status_code=auth.get('status', 200))
-	if token :
-		response.set_cookie('kh-auth', token, secure=True, httponly=False, samesite='strict')
+	response = UJSONResponse(auth)
+
+	if auth.token.token :
+		expires = auth.token.expires - datetime.now()
+		response.set_cookie('kh-auth', auth.token.token, secure=True, httponly=True, samesite='strict', expires=int(expires.total_seconds()))
 
 	return response
 
 
-@app.post('/v1/change_password')
-async def v1ChangePassword(req: ChangePasswordRequest) :
-	auth = await account.changePassword(req.email, req.password, req.new_password)
-	return UJSONResponse(auth, status_code=auth.get('status', 200))
+@app.post('/v1/change_password', status_code=204)
+async def v1ChangePassword(req: Request, body: ChangePasswordRequest) :
+	await req.user.verify_scope(Scope.user)
+	await account.changePassword(body.email, body.password, body.new_password)
 
 
-@app.post('/v1/change_handle')
+@app.post('/v1/change_handle', status_code=204)
 async def v1ChangeHandle(req: Request, body: ChangeHandle) :
-	req.user.authenticated()
-	account.changeHandle(req.user, body.handle)
-	return NoContentResponse
+	await req.user.verify_scope(Scope.user)
+	await account.changeHandle(req.user, body.handle)
+
+
+@app.post('/v1/bot_login', response_model=LoginResponse)
+async def v1BotLogin(body: BotLoginRequest) :
+	# this endpoint does not require auth
+	return await auth_client.bot_login(body.dict())
+
+
+@app.post('/v1/bot_create', response_model=BotCreateResponse)
+async def v1BotCreate(req: Request, body: BotCreateRequest) :
+	await req.user.verify_scope(Scope.user)
+	return await auth_client.bot_create(body.dict())
 
 
 if __name__ == '__main__' :
