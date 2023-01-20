@@ -17,7 +17,7 @@ from kh_common.utilities.json import json_stream
 from psycopg2.errors import UniqueViolation
 
 from fuzzly_account.constants import AuthHost
-from fuzzly_account.models import LoginResponse, TokenResponse
+from fuzzly_account.models import BotCreateResponse, LoginResponse, TokenResponse
 
 
 class AuthClient(Client) :
