@@ -26,7 +26,7 @@ class AuthClient(Client) :
 
 	def __init__(self: 'AuthClient', *a, **kv) :
 		super().__init__(*a, **kv)
-		asyncio.run(auth_client.start())
+		asyncio.run(self.start())
 		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
 		self.sign: Gateway = self.authenticated(Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST'))
 		self.create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/create', LoginResponse, 'POST'))
