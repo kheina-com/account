@@ -1,11 +1,9 @@
-from fastapi.responses import UJSONResponse
+from fastapi.responses import JSONResponse
 from kh_common.auth import Scope
-from kh_common.config.credentials import fuzzly_client_token
 from kh_common.datetime import datetime
 from kh_common.server import Request, ServerApp
 
 from account import Account, auth_client
-from fuzzly_account.constants import AuthHost
 from fuzzly_account.models import BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
@@ -40,7 +38,7 @@ async def shutdown() :
 async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req)
 
-	response = UJSONResponse(auth)
+	response = JSONResponse(auth.json())
 
 	if auth.token.token :
 		expires = auth.token.expires - datetime.now()
@@ -58,7 +56,7 @@ async def v1CreateAccount(body: CreateAccountRequest) :
 async def v1FinalizeAccount(req: Request, body: FinalizeAccountRequest) :
 	auth = await account.finalizeAccount(body.name, body.handle, body.password, body.token, req.client.host)
 
-	response = UJSONResponse(auth)
+	response = JSONResponse(auth.json())
 
 	if auth.token.token :
 		expires = auth.token.expires - datetime.now()
