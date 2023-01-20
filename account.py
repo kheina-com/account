@@ -34,6 +34,11 @@ class AuthClient(Client) :
 		self.bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
 		self.bot_create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST'))
 
+
+	async def start(self: 'AuthClient') :
+		login_response: LoginResponse = await AuthClient._login({ 'token': self._token })
+		self._auth = login_response.token.token
+
 auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
 
