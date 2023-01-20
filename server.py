@@ -1,4 +1,4 @@
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from kh_common.auth import Scope
 from kh_common.datetime import datetime
 from kh_common.server import Request, ServerApp
@@ -37,8 +37,7 @@ async def shutdown() :
 @app.post('/v1/login', response_model=LoginResponse)
 async def v1Login(req: Request, body: LoginRequest) :
 	auth = await account.login(body.email, body.password, req)
-
-	response = JSONResponse(auth.json())
+	response = Response(auth.json(), headers={ 'content-type': 'application/json' })
 
 	if auth.token.token :
 		expires = auth.token.expires - datetime.now()
@@ -55,8 +54,7 @@ async def v1CreateAccount(body: CreateAccountRequest) :
 @app.post('/v1/finalize', response_model=LoginResponse)
 async def v1FinalizeAccount(req: Request, body: FinalizeAccountRequest) :
 	auth = await account.finalizeAccount(body.name, body.handle, body.password, body.token, req.client.host)
-
-	response = JSONResponse(auth.json())
+	response = Response(auth.json(), headers={ 'content-type': 'application/json' })
 
 	if auth.token.token :
 		expires = auth.token.expires - datetime.now()
