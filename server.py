@@ -2,11 +2,10 @@ from fastapi.responses import UJSONResponse
 from kh_common.auth import Scope
 from kh_common.config.credentials import fuzzly_client_token
 from kh_common.datetime import datetime
-from kh_common.gateway import Gateway
 from kh_common.server import Request, ServerApp
 
-from account import Account
-from fuzzly_account.constants import AuthHost, auth_client
+from account import Account, auth_client
+from fuzzly_account.constants import AuthHost
 from fuzzly_account.models import BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
