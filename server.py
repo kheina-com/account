@@ -1,14 +1,13 @@
 from fastapi.responses import UJSONResponse
 from kh_common.auth import Scope
-from kh_common.client import Client
 from kh_common.config.credentials import fuzzly_client_token
 from kh_common.gateway import Gateway
 from kh_common.server import Request, ServerApp
 from kh_common.datetime import datetime
 
 from account import Account
-from fuzzly_account.constants import AuthHost
-from fuzzly_account.models import AuthLoginRequest, BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
+from fuzzly_account.constants import auth_client, AuthHost
+from fuzzly_account.models import BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
 app = ServerApp(
@@ -31,17 +30,6 @@ app = ServerApp(
 	],
 )
 account = Account()
-
-
-class AuthClient(Client) :
-
-	def __init__(self: 'AuthClient', *a, **kv) :
-		super().__init__(*a, **kv)
-		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
-		self.bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
-		self.bot_create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST'))
-
-auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
 
 @app.on_event('shutdown')

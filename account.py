@@ -1,3 +1,4 @@
+import asyncio
 from re import IGNORECASE
 from re import compile as re_compile
 
@@ -21,12 +22,17 @@ from fuzzly_account.models import LoginResponse, TokenResponse
 
 class AuthClient(Client) :
 
+	_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
+
 	def __init__(self: 'AuthClient', *a, **kv) :
 		super().__init__(*a, **kv)
+		asyncio.run(auth_client.start())
 		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
 		self.sign: Gateway = self.authenticated(Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST'))
 		self.create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/create', LoginResponse, 'POST'))
 		self.change_password: Gateway = self.authenticated(Gateway(AuthHost + '/v1/change_password', decoder=None))
+		self.bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
+		self.bot_create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST'))
 
 auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
