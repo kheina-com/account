@@ -87,7 +87,7 @@ class Account(SqlInterface, Hashable) :
 		data = await self.query_async()
 
 
-	@HttpErrorHandler('logging in user', exclusions=['self', 'password'])
+	@HttpErrorHandler('logging in user', exclusions=['self', 'password', 'request'])
 	async def login(self: 'Account', email: str, password: str, request: Request) -> LoginResponse :
 		self._validateEmail(email)
 		self._validatePassword(password)
@@ -132,7 +132,7 @@ class Account(SqlInterface, Hashable) :
 		self._validateHandle(handle)
 
 		try :
-			token_data = await verifyToken(token, allow_non_user_tokens=True)
+			token_data = await verifyToken(token)
 
 		except HttpError :
 			raise BadRequest('the email confirmation key provided was invalid or could not be authenticated.')
