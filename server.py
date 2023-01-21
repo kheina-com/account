@@ -4,7 +4,7 @@ from kh_common.datetime import datetime
 from kh_common.server import Request, ServerApp
 
 from account import Account, auth_client
-from fuzzly_account.models import BotCreateRequest, BotCreateResponse, BotLoginRequest, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
+from fuzzly_account.models import BotCreateResponse, BotLoginRequest, BotType, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
 app = ServerApp(
@@ -81,10 +81,16 @@ async def v1BotLogin(body: BotLoginRequest) :
 	return await auth_client.bot_login(body.dict())
 
 
-@app.post('/v1/bot_create', response_model=BotCreateResponse)
-async def v1BotCreate(req: Request, body: BotCreateRequest) :
+@app.get('/v1/bot_create', response_model=BotCreateResponse)
+async def v1BotCreate(req: Request) :
 	await req.user.verify_scope(Scope.user)
-	return await auth_client.bot_create(body.dict())
+	return await auth_client.bot_create({ 'bot_type': BotType.bot.name })
+
+
+@app.get('/v1/bot_internal', response_model=BotCreateResponse)
+async def v1BotCreateInternal(req: Request) :
+	await req.user.verify_scope(Scope.admin)
+	return await auth_client.bot_create({ 'bot_type': BotType.internal.name })
 
 
 if __name__ == '__main__' :
