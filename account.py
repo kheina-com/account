@@ -63,10 +63,10 @@ class AuthClient(Client) :
 
 
 	@Client.authenticated
-	async def change_password(self: Client, email: str, password: str, new_password: str, auth: str = None) -> None :
+	async def change_password(self: Client, email: str, old_password: str, new_password: str, auth: str = None) -> None :
 		return await self._change_password({
 			'email': email,
-			'password': password,
+			'password': old_password,
 			'new_password': new_password,
 		}, auth=auth)
 
