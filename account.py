@@ -145,7 +145,7 @@ class Account(SqlInterface, Hashable) :
 			'fp': browserFingerprint(request),
 		}
 
-		return await auth_client.login(
+		return await auth_client.user_login(
 			email,
 			password,
 			token_data,
