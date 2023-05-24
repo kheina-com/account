@@ -90,7 +90,7 @@ async def v1BotCreate(req: Request) :
 @app.get('/v1/bot_internal', response_model=BotCreateResponse)
 async def v1BotCreateInternal(req: Request) :
 	await req.user.verify_scope(Scope.admin)
-	return await auth_client.bot_create(BotType.internal, req.user.user_id )
+	return await auth_client.bot_create(BotType.internal, req.user.user_id)
 
 
 if __name__ == '__main__' :

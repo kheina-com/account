@@ -66,21 +66,21 @@ class AuthClient(Client) :
 	async def change_password(self: Client, email: str, old_password: str, new_password: str, auth: str = None) -> None :
 		return await self._change_password({
 			'email': email,
-			'password': old_password,
+			'old_password': old_password,
 			'new_password': new_password,
 		}, auth=auth)
 
 
 	@Client.authenticated
 	async def bot_login(self: Client, token: str, auth: str = None) -> LoginResponse :
-		return await self._change_password({
+		return await self._bot_login({
 			'token': token,
 		}, auth=auth)
 
 
 	@Client.authenticated
 	async def bot_create(self: Client, bot_type: BotType, user_id: int, auth: str = None) -> BotCreateResponse :
-		return await self._change_password({
+		return await self._bot_create({
 			'bot_type': bot_type.name,
 			'user_id': user_id,
 		}, auth=auth)
@@ -223,9 +223,9 @@ class Account(SqlInterface, Hashable) :
 		self._validatePassword(new_password)
 
 		await auth_client.change_password(
-			email = email,
-			old_password = old_password,
-			new_password = new_password,
+			email,
+			old_password,
+			new_password,
 		)
 
 
