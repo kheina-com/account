@@ -4,7 +4,7 @@ from kh_common.datetime import datetime
 from kh_common.server import Request, ServerApp
 
 from account import Account, auth_client
-from fuzzly_account.models import BotCreateResponse, BotLoginRequest, BotType, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
+from models import BotCreateResponse, BotLoginRequest, BotType, ChangeHandle, ChangePasswordRequest, CreateAccountRequest, FinalizeAccountRequest, LoginRequest, LoginResponse
 
 
 app = ServerApp(
@@ -78,19 +78,19 @@ async def v1ChangeHandle(req: Request, body: ChangeHandle) :
 @app.post('/v1/bot_login', response_model=LoginResponse)
 async def v1BotLogin(body: BotLoginRequest) :
 	# this endpoint does not require auth
-	return await auth_client.bot_login(body.dict())
+	return await auth_client.bot_login(body.token)
 
 
 @app.get('/v1/bot_create', response_model=BotCreateResponse)
 async def v1BotCreate(req: Request) :
 	await req.user.verify_scope(Scope.user)
-	return await auth_client.bot_create({ 'bot_type': BotType.bot.name, 'user_id': req.user.user_id })
+	return await auth_client.bot_create(BotType.bot, req.user.user_id)
 
 
 @app.get('/v1/bot_internal', response_model=BotCreateResponse)
 async def v1BotCreateInternal(req: Request) :
 	await req.user.verify_scope(Scope.admin)
-	return await auth_client.bot_create({ 'bot_type': BotType.internal.name, 'user_id': req.user.user_id })
+	return await auth_client.bot_create(BotType.internal, req.user.user_id )
 
 
 if __name__ == '__main__' :

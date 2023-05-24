@@ -1,9 +1,10 @@
 import asyncio
 from re import IGNORECASE
 from re import compile as re_compile
+from typing import Dict
 
+from fuzzly.client import Client
 from kh_common.auth import KhUser, browserFingerprint, verifyToken
-from kh_common.client import Client
 from kh_common.config.constants import environment
 from kh_common.config.credentials import fuzzly_client_token
 from kh_common.email import Button, sendEmail
@@ -16,28 +17,74 @@ from kh_common.sql import SqlInterface
 from kh_common.utilities.json import json_stream
 from psycopg2.errors import UniqueViolation
 
-from fuzzly_account.constants import AuthHost
-from fuzzly_account.models import BotCreateResponse, LoginResponse, TokenResponse
+from constants import AuthHost
+from models import BotCreateResponse, BotType, LoginResponse, TokenResponse
 
 
 class AuthClient(Client) :
 
-	_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
+	def __init__(self, token: str) :
+		super().__init__()
+		self.initialize(token, Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST'))
 
-	def __init__(self: 'AuthClient', *a, **kv) :
-		super().__init__(*a, **kv)
-		asyncio.run(self.start())
-		self.login: Gateway = self.authenticated(Gateway(AuthHost + '/v1/login', LoginResponse, 'POST'))
-		self.sign: Gateway = self.authenticated(Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST'))
-		self.create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/create', LoginResponse, 'POST'))
-		self.change_password: Gateway = self.authenticated(Gateway(AuthHost + '/v1/change_password', decoder=None))
-		self.bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
-		self.bot_create: Gateway = self.authenticated(Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST'))
+		self._user_login: Gateway = Gateway(AuthHost + '/v1/login', LoginResponse, 'POST')
+		self._sign: Gateway = Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST')
+		self._create: Gateway = Gateway(AuthHost + '/v1/create', LoginResponse, 'POST')
+		self._change_password: Gateway = Gateway(AuthHost + '/v1/change_password', decoder=None, method='POST')
+		self._bot_login: Gateway = Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST')
+		self._bot_create: Gateway = Gateway(AuthHost + '/v1/bot_create', BotCreateResponse, 'POST')
 
 
-	async def start(self: 'AuthClient') :
-		login_response: LoginResponse = await AuthClient._login({ 'token': self._token })
-		self._auth = login_response.token.token
+	@Client.authenticated
+	async def user_login(self: Client, email: str, password: str, token_data: dict, auth: str = None) -> LoginResponse :
+		return await self._user_login({
+			'email': email,
+			'password': password,
+			'token_data': json_stream(token_data),
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def sign(self: Client, data: dict, auth: str = None) -> TokenResponse :
+		return await self._sign({
+			'token_data': data,
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def create(self: Client, email: str, password: str, name: str, handle: str, token_data: Dict[str, str], auth: str = None) -> TokenResponse :
+		return await self._create({
+			'email': email,
+			'password': password,
+			'name': name,
+			'handle': handle,
+			'token_data': json_stream(token_data),
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def change_password(self: Client, email: str, password: str, new_password: str, auth: str = None) -> None :
+		return await self._change_password({
+			'email': email,
+			'password': password,
+			'new_password': new_password,
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def bot_login(self: Client, token: str, auth: str = None) -> LoginResponse :
+		return await self._change_password({
+			'token': token,
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def bot_create(self: Client, bot_type: BotType, user_id: int, auth: str = None) -> BotCreateResponse :
+		return await self._change_password({
+			'bot_type': bot_type.name,
+			'user_id': user_id,
+		}, auth=auth)
+
 
 auth_client: AuthClient = AuthClient(fuzzly_client_token)
 
@@ -98,22 +145,20 @@ class Account(SqlInterface, Hashable) :
 			'fp': browserFingerprint(request),
 		}
 
-		return await auth_client.login({
-			'email': email,
-			'password': password,
-			'token_data': json_stream(token_data),
-		})
+		return await auth_client.login(
+			email,
+			password,
+			token_data,
+		)
 
 
 	@HttpErrorHandler('creating user account')
 	async def createAccount(self: 'Account', email: str, name: str) :
 		self._validateEmail(email)
 		data: TokenResponse = await auth_client.sign({
-			'token_data': {
-				'name': name,
-				'email': email,
-				'key': Account.AccountCreateKey,
-			},
+			'name': name,
+			'email': email,
+			'key': Account.AccountCreateKey,
 		})
 
 		await sendEmail(
@@ -140,16 +185,16 @@ class Account(SqlInterface, Hashable) :
 		if token_data.data.get('key') != Account.AccountCreateKey :
 			raise BadRequest('the token provided does not match the purpose required.')
 
-		data: LoginResponse = await auth_client.create({
-			'email': token_data.data['email'],
-			'password': password,
-			'name': name,
-			'handle': handle,
-			'token_data': {
+		data: LoginResponse = await auth_client.create(
+			email = token_data.data['email'],
+			password = password,
+			name = name,
+			handle = handle,
+			token_data = {
 				'email': token_data.data['email'],
 				'ip': ip_address,
 			},
-		})
+		)
 
 		await self.query_async(
 			"""
@@ -177,11 +222,11 @@ class Account(SqlInterface, Hashable) :
 		self._validatePassword(old_password)
 		self._validatePassword(new_password)
 
-		await auth_client.change_password({
-			'email': email,
-			'old_password': old_password,
-			'new_password': new_password,
-		})
+		await auth_client.change_password(
+			email = email,
+			old_password = old_password,
+			new_password = new_password,
+		)
 
 
 	@HttpErrorHandler('changing user handle', handlers = {
@@ -203,12 +248,9 @@ class Account(SqlInterface, Hashable) :
 	async def recoverPassword(self: 'Account', email: str) :
 		self._validateEmail(email)
 
-
 		data: TokenResponse = await auth_client.sign({
-			'token_data': {
-				'email': email,
-				'key': Account.AccountRecoveryKey,
-			},
+			'email': email,
+			'key': Account.AccountRecoveryKey,
 		})
 
 		await sendEmail(
