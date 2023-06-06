@@ -1,4 +1,3 @@
-import asyncio
 from re import IGNORECASE
 from re import compile as re_compile
 from typing import Dict
@@ -16,6 +15,8 @@ from kh_common.server import Request
 from kh_common.sql import SqlInterface
 from kh_common.utilities.json import json_stream
 from psycopg2.errors import UniqueViolation
+from kh_common.base64 import b64encode
+from uuid import UUID
 
 from constants import AuthHost
 from models import BotCreateResponse, BotType, LoginResponse, TokenResponse
@@ -27,6 +28,7 @@ class AuthClient(Client) :
 		super().__init__()
 		self.initialize(token, Gateway(AuthHost + '/v1/bot_login', LoginResponse, 'POST'))
 
+		self._user_logout: Gateway = Gateway(AuthHost + '/v1/logout', decoder=None, method='POST')
 		self._user_login: Gateway = Gateway(AuthHost + '/v1/login', LoginResponse, 'POST')
 		self._sign: Gateway = Gateway(AuthHost + '/v1/sign_data', TokenResponse, 'POST')
 		self._create: Gateway = Gateway(AuthHost + '/v1/create', LoginResponse, 'POST')
@@ -41,6 +43,13 @@ class AuthClient(Client) :
 			'email': email,
 			'password': password,
 			'token_data': json_stream(token_data),
+		}, auth=auth)
+
+
+	@Client.authenticated
+	async def user_logout(self: Client, token_guid: UUID, auth: str = None) -> None :
+		return await self._user_logout({
+			'token': b64encode(token_guid.bytes).decode(),
 		}, auth=auth)
 
 
@@ -149,6 +158,13 @@ class Account(SqlInterface, Hashable) :
 			email,
 			password,
 			token_data,
+		)
+
+
+	@HttpErrorHandler('logging out user')
+	async def logout(self: 'Account', user: KhUser) -> None :
+		return await auth_client.user_logout(
+			user.token.guid,
 		)
 
 

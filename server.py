@@ -8,6 +8,11 @@ from models import BotCreateResponse, BotLoginRequest, BotType, ChangeHandle, Ch
 
 
 app = ServerApp(
+	allowed_methods=[
+		'GET',
+		'POST',
+		'DELETE',
+	],
 	auth_required = False,
 	allowed_hosts = [
 		'localhost',
@@ -44,6 +49,12 @@ async def v1Login(req: Request, body: LoginRequest) :
 		response.set_cookie('kh-auth', auth.token.token, secure=True, httponly=True, samesite='strict', expires=int(expires.total_seconds()))
 
 	return response
+
+
+@app.delete('/v1/logout', status_code=204)
+async def v1Logout(req: Request) :
+	await req.user.verify_scope(Scope.user)
+	return await account.logout(req.user)
 
 
 @app.post('/v1/create', status_code=204)
